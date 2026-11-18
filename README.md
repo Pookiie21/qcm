@@ -140,6 +140,92 @@ Pour chaque commande : la formule générique, un exemple, puis ce qu'elle fait.
 | `IP qui accèdent à un script` | `grep "wp-login.php" access.log \| cut -d' ' -f1 \| sort -u` | IP suspectes |
 | `IP ayant téléchargé un fichier` | `grep "GET" access.log \| grep "CM-3-Scripts-Shell.pdf" \| cut -d' ' -f1 \| sort -u` | Deux grep enchaînés |
 
+## cut : toutes les utilisations
+
+| Formule générique | Exemple | Explication |
+|---|---|---|
+| `cut -d'SEP' -fN fichier` | `cut -d' ' -f1 access.log` | Colonne N d'un fichier découpé par le séparateur SEP (ici l'espace) : la 1re colonne d'un log Apache = l'adresse IP |
+| `head -n 3 fichier` | `head -n 3 access.log` | À faire d'abord : regarde le format du log pour choisir le bon numéro de colonne |
+| `cut -d' ' -f1,7 fichier` | `cut -d' ' -f1,7 access.log` | Plusieurs colonnes séparées par une virgule (ici IP et page demandée) |
+| `cut -d' ' -f1-3 fichier` | `cut -d' ' -f1-3 access.log` | Une plage de colonnes (ici de la 1re à la 3e) |
+| `cut -d' ' -f2- fichier` | `cut -d' ' -f2- access.log` | De la 2e colonne jusqu'à la fin |
+| `cut -c1-10 fichier` | `cut -c1-10 access.log` | Par caractères et non par colonnes : les 10 premiers caractères |
+| `cut -d: -fN fichier` | `cut -d: -f1 /etc/passwd` | Autre séparateur : ici la liste des noms d'utilisateurs (colonne 1 avant le :) |
+| `cut -d'"' -fN fichier` | `cut -d'"' -f2 access.log` | Séparateur guillemet : la partie entre les 1ers guillemets d'un log, soit la requête (GET /page HTTP/1.1) |
+| `grep "motif" f \| cut -d' ' -f1` | `grep "78.219.34.20" access.log \| cut -d' ' -f7` | Filtrer d'abord, puis extraire : pages demandées par cette IP |
+| `cut -d' ' -f1 f \| sort -u` | `cut -d' ' -f1 access.log \| sort -u` | IP sans doublons |
+| `cut -d' ' -f1 f \| sort -u \| wc -l` | `cut -d' ' -f1 access.log \| sort -u \| wc -l` | Nombre d'IP différentes |
+| `cut -d' ' -f1 f \| sort \| uniq -c \| sort -nr \| head -5` | `cut -d' ' -f1 access.log \| sort \| uniq -c \| sort -nr \| head -5` | Top 5 des IP les plus actives |
+| `cut -d' ' -f7 f \| sort \| uniq -c \| sort -nr \| head` | `cut -d' ' -f7 access.log \| sort \| uniq -c \| sort -nr \| head` | Pages les plus demandées |
+| `cut -d' ' -f9 f \| sort \| uniq -c` | `cut -d' ' -f9 access.log \| sort \| uniq -c` | Combien de réponses par code HTTP (200, 404…) |
+| `grep "wp-login.php" f \| cut -d' ' -f1 \| sort -u` | `grep "wp-login.php" access.log \| cut -d' ' -f1 \| sort -u` | IP qui accèdent à wp-login.php (suspectes) |
+| `grep "GET" f \| grep "x.pdf" \| cut -d' ' -f1 \| sort -u` | `grep "GET" access.log \| grep "CM-3-Scripts-Shell.pdf" \| cut -d' ' -f1 \| sort -u` | IP qui ont téléchargé ce PDF avec GET |
+| `cut -d' ' -f4 f \| cut -c2-12` | `cut -d' ' -f4 access.log \| cut -c2-12` | Deux cut enchaînés : la date (ex : 10/Oct/2022) sans le [ du début |
+| `Limite de cut` | `ls -l \| awk '{print $1}'` | cut ne gère pas les espaces multiples (ls -l) : utiliser awk '{print $N}' |
+
+## TP-1 : déroulé complet (users, sudo, logs)
+
+| Formule générique | Exemple | Explication |
+|---|---|---|
+| `sudo adduser NOM` | `sudo adduser user1` | Crée l'utilisateur avec dossier perso, mot de passe demandé et questions (interactif) |
+| `sudo useradd NOM` | `sudo useradd user2` | Crée l'utilisateur SANS dossier perso, SANS mot de passe, shell sh par défaut (bas niveau) |
+| `sudo useradd -m -s /bin/bash NOM` | `sudo useradd -m -s /bin/bash user2` | useradd avec dossier perso (-m) et bash (-s) |
+| `sudo passwd NOM` | `sudo passwd user2` | Définit ou change le mot de passe d'un utilisateur |
+| `su - NOM` | `su - user1` | Se connecter en tant que cet utilisateur (user2 sans dossier perso : pas de /home/user2, prompt $ simple) |
+| `exit` | `exit` | Quitter la session de l'utilisateur et revenir au compte précédent |
+| `sudo deluser --remove-home NOM` | `sudo deluser --remove-home user1` | Supprime l'utilisateur et son dossier perso |
+| `sudo userdel -r NOM` | `sudo userdel -r user2` | Équivalent de deluser (-r = supprime aussi le dossier perso) |
+| `sudo mkdir /etc/skel/DOSSIER` | `sudo mkdir /etc/skel/documents /etc/skel/images /etc/skel/vidéos` | Squelette : ces dossiers seront copiés chez chaque nouvel utilisateur |
+| `echo "texte" \| sudo tee FICHIER` | `echo "Bienvenue à l'ESIREM !" \| sudo tee /etc/skel/bienvenue.txt` | Crée un fichier dans un dossier protégé (un simple > ne marche pas avec sudo) |
+| `ls -a /home/NOM` | `ls -a /home/user3` | Vérifier : user3 reçoit documents, images, vidéos et bienvenue.txt (copiés depuis /etc/skel) |
+| `sudo adduser user3 (après le skel)` | `sudo adduser user3` | Les fichiers de /etc/skel sont copiés seulement à la création du compte |
+| `su - user3 puis adduser user4` | `su - user3 ; adduser user4` | Refusé : « Only root may add a user » (user3 n'est pas sudoer) |
+| `sudo usermod -aG sudo NOM` | `sudo usermod -aG sudo user3` | Ajoute user3 au groupe sudo (-a = ajouter, sinon ça REMPLACE ses groupes) |
+| `groups NOM` | `groups user3` | Vérifier que sudo apparaît dans les groupes |
+| `sudo adduser user4 (en user3)` | `su - user3 ; sudo adduser user4` | Marche après une NOUVELLE connexion de user3 (le groupe n'est pris en compte qu'à la reconnexion) |
+| `wget URL` | `wget https://www.lamarmotte.info/wp-content/uploads/2022/10/access.log` | Télécharge le fichier de log dans le dossier courant |
+| `cat FICHIER ou less FICHIER` | `less access.log` | Afficher le log (less : défiler avec les flèches, q pour quitter) |
+| `wc -l FICHIER` | `wc -l access.log` | Nombre de lignes du fichier = nombre de requêtes |
+| `grep "IP" FICHIER` | `grep "78.219.34.20" access.log` | Affiche les requêtes de cette IP |
+| `grep "IP" FICHIER \| wc -l` | `grep "78.219.34.20" access.log \| wc -l` | Combien de requêtes de cette IP (équivalent : grep -c "IP" FICHIER) |
+| `cut -d' ' -f1 FICHIER` | `cut -d' ' -f1 access.log` | N'affiche que les IP (1re colonne, séparateur espace) |
+| `cut -d' ' -f1 FICHIER \| sort -u` | `cut -d' ' -f1 access.log \| sort -u` | Les IP sans doublons (sort -u = trie et supprime les doublons) |
+| `cut -d' ' -f1 FICHIER \| sort -u \| wc -l` | `cut -d' ' -f1 access.log \| sort -u \| wc -l` | Nombre d'IP différentes |
+| `grep "GET" FICHIER \| grep "fichier.pdf" \| grep "Mois/Année"` | `grep "GET" access.log \| grep "CM-3-Scripts-Shell.pdf" \| grep "Oct/2022"` | Requêtes GET du PDF ce mois-ci (le mois s'écrit comme dans le log : Oct/2022) |
+| `... \| cut -d' ' -f1 \| sort -u` | `grep "GET" access.log \| grep "CM-3-Scripts-Shell.pdf" \| grep "Oct/2022" \| cut -d' ' -f1 \| sort -u` | Réponse complète : les IP des élèves qui ont téléchargé le CM-3 |
+| `cut -d' ' -f1 FICHIER \| sort \| uniq -c` | `cut -d' ' -f1 access.log \| sort \| uniq -c` | Nombre de requêtes par IP (uniq -c compte les lignes identiques CONSÉCUTIVES, donc trier avant avec sort) |
+| `... \| sort -nr \| head -5` | `cut -d' ' -f1 access.log \| sort \| uniq -c \| sort -nr \| head -5` | Les 5 IP les plus actives (-nr = numérique décroissant) |
+| `grep "wp-login.php" FICHIER \| cut -d' ' -f1 \| sort -u` | `grep "wp-login.php" access.log \| cut -d' ' -f1 \| sort -u` | Attaque : IP qui accèdent à wp-login.php |
+| `declare -a tab=(un deux trois)` | `declare -a tab=(un deux trois)` | Initialiser un tableau |
+| `declare -r chaine="un deux trois"` | `declare -r chaine="un deux trois" ; declare -a tab=($chaine)` | Scinder une chaîne en mots (sans guillemets autour de $chaine) pour remplir un tableau (-r = lecture seule) |
+| `${tab[@]} et ${#tab[@]}` | `for ip in "${tab[@]}"; do echo "$ip"; done` | Parcourir tous les éléments du tableau ; ${#tab[@]} = nombre d'éléments |
+| `Script suspects : IP wp-login` | `suspects=$(grep "wp-login.php" "$1" \| cut -d' ' -f1 \| sort -u)` | Stocke dans une variable les IP qui touchent wp-login.php |
+| `Script suspects : IP > 100 requêtes` | `lignes=$(cut -d' ' -f1 "$1" \| sort \| uniq -c \| sort -nr)` | Liste « nombre IP » triée ; la lire avec une boucle |
+| `Script suspects : lire ligne par ligne` | `while read nb ip; do [ "$nb" -gt 100 ] && echo "$ip"; done <<< "$lignes"` | Pour chaque ligne « nb ip » : affiche l'IP si nb > 100 (<<< envoie la variable dans read) |
+| `Script suspects : version courte` | `cut -d' ' -f1 "$1" \| sort \| uniq -c \| awk '$1>100 {print $2}'` | awk '$1>100 {print $2}' : si le nombre > 100, affiche l'IP (colonne 2) |
+| `Script suspects : tout ensemble` | `{ grep "wp-login.php" "$1" \| cut -d' ' -f1; cut -d' ' -f1 "$1" \| sort \| uniq -c \| awk '$1>100 {print $2}'; } \| sort -u` | Les deux critères fusionnés, sans doublons : c'est la liste finale des IP suspectes |
+| `Vérifier le paramètre du script` | `if [ $# -ne 1 ]; then echo "Usage: $0 fichier.log"; exit 1; fi` | À mettre au début : le script attend 1 argument (le fichier de log) |
+
+## cut : comprendre les colonnes (log Apache)
+
+| Formule générique | Exemple | Explication |
+|---|---|---|
+| `Principe de cut` | `cut -d' ' -f1 mini.log` | cut ne connaît pas le mot « IP » : il choisit par NUMÉRO de colonne (comme la colonne A d'Excel). C'est toi qui sais que la colonne 1 contient l'IP |
+| `Découpage d'une ligne` | `78.219.34.20 - - [10/Oct/2022:10:00:01 +0200] "GET /index.html HTTP/1.1" 200 512` | Coupée à chaque espace : 1=IP, 2=-, 3=-, 4=[date:heure, 5=+0200], 6="GET, 7=/index.html, 8=HTTP/1.1", 9=code (200), 10=taille |
+| `-d' '` | `cut -d' ' -f1 mini.log` | -d = délimiteur : le caractère qui sépare les colonnes (ici l'espace, écrit entre apostrophes) |
+| `-fN` | `cut -d' ' -f7 mini.log` | -f = field : le numéro de la colonne à garder (ici la 7 = la page demandée) |
+| `Colonne 1 : IP` | `cut -d' ' -f1 mini.log` | Les adresses IP des visiteurs |
+| `Colonne 4 : date et heure` | `cut -d' ' -f4 mini.log` | Date et heure de la requête, avec le [ au début |
+| `Colonne 6 : méthode` | `cut -d' ' -f6 mini.log` | "GET ou "POST (avec le guillemet) |
+| `Colonne 7 : page` | `cut -d' ' -f7 mini.log` | La page ou le fichier demandé (/index.html, /wp-login.php…) |
+| `Colonne 9 : code HTTP` | `cut -d' ' -f9 mini.log` | 200 = OK, 404 = page introuvable, 401 = accès refusé |
+| `Vérifier les colonnes avant` | `head -n 3 mini.log` | Toujours regarder 3 lignes du fichier pour compter les colonnes avant d'écrire le cut |
+| `Compter les lignes d'un fichier` | `wc -l mini.log` | Affiche « 10 mini.log » : 10 lignes |
+| `Les N premières lignes` | `head -n 3 mini.log` | Affiche seulement les 3 premières lignes |
+| `Erreur classique` | `cut ip mini.log` | FAUX : cut n'accepte pas de mot. Écrire cut -d' ' -f1 mini.log |
+| `IP différentes (mini.log)` | `cut -d' ' -f1 mini.log \| sort -u` | Liste des IP sans doublons (4 IP dans mini.log) |
+| `Nombre d'IP différentes (mini.log)` | `cut -d' ' -f1 mini.log \| sort -u \| wc -l` | Doit afficher 4 |
+
 ## Chercher des fichiers
 
 | Formule générique | Exemple | Explication |
